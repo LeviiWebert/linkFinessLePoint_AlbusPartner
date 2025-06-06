@@ -44,15 +44,15 @@ COLA_DEPT         = "Département"
 COLA_MOTS_SIG     = "Mots significatifs"
 
 # Colonnes DF (Table B)
-COLB_NOM          = "Nom"
-COLB_NOM2         = "Nom2"
+COLB_NOM          = "Nom_x"
+COLB_NOM2         = "Nom2_x"
 COLB_VILLE        = "Ville"
 COLB_CODE_FINESS  = "FINESS"
 
 # STOPWORDS et abréviations
 STOPWORDS = {
     "DE","DU","DES","UN","UNE","LE","LA","LES","AU","AUX","ET","EN","L",
-    "GRAND","HÔPITAL","HOPITAL","CLINIQUE","MATERNITÉ","MATERNITE","HCL","GHL"
+    "GRAND","HÔPITAL","HOPITAL","CLINIQUE","HCL","GHL"
 }
 HOSP_ABBREV = {"CHU","CHI","CH","HCL","GHL"}
 
