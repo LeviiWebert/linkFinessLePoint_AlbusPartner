@@ -3,6 +3,12 @@ import os
 import sys
 import re
 from fuzzywuzzy import fuzz
+import google.generativeai as genai
+
+# Configure Google AI
+genai.configure(api_key="AIzaSyBfQjj1pNx0yDlXUSo4tdWUe5RcE35ON6o")
+model = genai.GenerativeModel('gemini-1.5-flash')
+
 
 PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\data_propre_ext_LP-167_Acc_Risque.xlsx"
 PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Résultats\DONNEES_REUNIES_COMPLETE.xlsx"
@@ -26,6 +32,40 @@ REPLACE = {
     "-"," DE "," DU ",
     "D'"," DES "
 }
+
+def ai_compare_hospital_names(name1, name2, name3="", name4=""):
+    """
+    Utilise l'IA pour comparer les noms d'hôpitaux et déterminer s'ils correspondent
+    """
+    try:
+        prompt = f"""
+        Tu es un expert en analyse de données médicales. Compare ces noms d'établissements de santé et détermine s'ils correspondent au même établissement.
+        
+        Nom de l'hôpital recherché: "{name1}"
+        Noms possibles dans la base de données:
+        - Nom 1: "{name2}"
+        - Nom 2: "{name3}"
+        - Nom 3: "{name4}"
+        
+        Règles à suivre:
+        - Ignore les différences mineures (accents, espaces, tirets)
+        - "ST" et "SAINT" sont équivalents
+        - "CHU", "CH", "HOPITAL", "CLINIQUE" peuvent être omis ou ajoutés
+        - Les abréviations courantes sont acceptées
+        - Les noms géographiques peuvent varier légèrement
+        
+        Réponds uniquement par:
+        - "MATCH_1" si le nom correspond au Nom 1
+        - "MATCH_2" si le nom correspond au Nom 2  
+        - "MATCH_3" si le nom correspond au Nom 3
+        - "NO_MATCH" si aucun ne correspond
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Erreur IA: {e}")
+        return "NO_MATCH"
 
 df_lp = pd.read_excel(PATH_TABLE_A)
 df_sc = pd.read_excel(PATH_TABLE_B)
@@ -64,27 +104,48 @@ for idx, row in df_lp.iterrows():
         nomscs.replace(" ST "," SAINT ")
         nomhop.replace(" ST "," SAINT ")
         nom2.replace(" ST "," SAINT ")
-        # comparaison des mots entre eux en tant qu'entier
-
-        mots_nom = nom.split()
+        # comparaison des mots entre eux en tant qu'entier        mots_nom = nom.split()
         mots_nomscs = nomscs.split()
         mots_nom2 = nom2.split()
-        mots_nomhop = nomhop.split()        # comparaison des mots entre eux en tant qu'entier
+        mots_nomhop = nomhop.split()        
+        
+        # Essayer d'abord la méthode classique
+        classic_match = False
         if any(re.search(rf"\b{re.escape(mot)}\b", nomscs) for mot in mots_nomhop):
-            print(f"Match trouvé : {nomhop} correspond à {nomscs} pour {row_sc[COLB_FIN_SCS]}")
+            print(f"Match classique trouvé : {nomhop} correspond à {nomscs} pour {row_sc[COLB_FIN_SCS]}")
             df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
-            break
+            classic_match = True
         elif any(re.search(rf"\b{re.escape(mot)}\b", nom) for mot in mots_nomhop):
-            print(f"Match trouvé : {nomhop} correspond à {nom} pour {row_sc[COLB_FIN_SCS]}")
+            print(f"Match classique trouvé : {nomhop} correspond à {nom} pour {row_sc[COLB_FIN_SCS]}")
             df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
-            break
+            classic_match = True
         elif any(re.search(rf"\b{re.escape(mot)}\b", nom2) for mot in mots_nomhop):
-            print(f"Match trouvé : {nomhop} correspond à {nom2} pour {row_sc[COLB_FIN_SCS]}")
+            print(f"Match classique trouvé : {nomhop} correspond à {nom2} pour {row_sc[COLB_FIN_SCS]}")
             df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
-            break
+            classic_match = True
+        classic_match = False
+        # Si pas de match classique, utiliser l'IA
+        if not classic_match:
+            print(f"Tentative de match IA pour {nomhop}...")
+            ai_result = ai_compare_hospital_names(nomhop, nomscs, nom, nom2)
+            
+            if ai_result == "MATCH_1":
+                print(f"Match IA trouvé : {nomhop} correspond à {nomscs} (IA) pour {row_sc[COLB_FIN_SCS]}")
+                df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
+                break
+            elif ai_result == "MATCH_2":
+                print(f"Match IA trouvé : {nomhop} correspond à {nom} (IA) pour {row_sc[COLB_FIN_SCS]}")
+                df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
+                break
+            elif ai_result == "MATCH_3":
+                print(f"Match IA trouvé : {nomhop} correspond à {nom2} (IA) pour {row_sc[COLB_FIN_SCS]}")
+                df_lp.at[idx, COLA_FINESS] = row_sc[COLB_FIN_SCS]
+                break
+            else:
+                print(f"Aucun match trouvé (classique + IA) pour {nomhop}\n")
+                # Continue à la prochaine ligne de df_sc_filtered
         else:
-            print(f"Aucun match trouvé pour {nomhop}\n") 
-            df_lp.at[idx, COLA_FINESS] = None
+            break  # Match classique trouvé, sortir de la boucle
 # Enregistrer le DataFrame modifié  
 print(df_lp[COLA_FINESS].view())
 print("Enregistrement des résultats...")
@@ -95,4 +156,5 @@ try:
 except Exception as e:
     print(f"Erreur lors de l'enregistrement du fichier : {e}")
     sys.exit(1)
-print(f"Résultats enregistrés dans {OUTPUT_PATH}")       
+print(f"Résultats enregistrés dans {OUTPUT_PATH}")
+
