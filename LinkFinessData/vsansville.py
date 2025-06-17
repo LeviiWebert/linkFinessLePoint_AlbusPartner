@@ -31,7 +31,7 @@ from fuzzywuzzy import fuzz
 # ──────────────────────────────────────────────────────────────────────────────
 
 PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\data_propre_ext_LP-167_Acc_Risque.xlsx"
-PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\FinessScansante.xlsx"
+PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Résultats\RésultatR123456_tout.xlsx"
 OUTPUT_PATH  = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\résultat_matches_finess.xlsx"
 DEBUG_PATH   = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\debug_report.txt"
 
@@ -45,7 +45,7 @@ COLA_MOTS_SIG     = "Mots significatifs"
 COLB_NOM = "Nom"
 COLB_FINESS  = "FINESS"
 # seuil initial et pas de variation
-SEUIL_INIT  = 80
+SEUIL_INIT  = 90
 DELTA_SCORE = 5
 
 

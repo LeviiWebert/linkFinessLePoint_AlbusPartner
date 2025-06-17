@@ -32,7 +32,7 @@ import unicodedata
 # ──────────────────────────────────────────────────────────────────────────────
 
 PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\data_propre_ext_LP-167_Acc_Risque.xlsx"
-PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Filt_Fine_SCSant.xlsx"
+PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Résultats\DONNEES_REUNIES_COMPLETE.xlsx"
 OUTPUT_PATH  = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\résultat_matches_finess.xlsx"
 
 # Colonnes Data (Table A)
@@ -42,12 +42,14 @@ COLA_VILLE        = "Ville"
 COLA_DEPT         = "Département"
 COLA_MOTS_SIG     = "Mots significatifs"
 
+
 # Colonnes DF (Table B)
 COLB_NOM          = "Nom"
 COLB_NOM2         = "Nom2"
 COLB_VILLE        = "Ville"
-COLB_CODE_FINESS  = "FINESS"
-COLB_CODE_FINESSJ  = "FINESSJ"
+COLB_FINESS  = "FINESS"
+COLB_FINESSJ  = "FINESSJ"
+COLB_FIN_SCS = "FINESSSCANSANTE"
 
 # STOPWORDS et abréviations
 STOPWORDS = {
@@ -144,7 +146,7 @@ def try_match_on_column(candidates: pd.DataFrame, column: str, tokens_req: list)
         nom_b = rowB.get(column, "")
         tokensB = tokenize(nom_b, "df")
         if tokens_req and all(tok in tokensB for tok in tokens_req):
-            matched_all.append(str(rowB[COLB_CODE_FINESS]).strip())
+            matched_all.append(str(rowB[COLB_FINESS]).strip())
 
     if matched_all:
         return matched_all
@@ -153,7 +155,7 @@ def try_match_on_column(candidates: pd.DataFrame, column: str, tokens_req: list)
         nom_b = rowB.get(column, "")
         tokensB = tokenize(nom_b, "df")
         if tokens_req and any(tok in tokensB for tok in tokens_req):
-            matched_any.append(str(rowB[COLB_CODE_FINESS]).strip())
+            matched_any.append(str(rowB[COLB_FINESS]).strip())
 
     return matched_any
 
@@ -171,7 +173,7 @@ def do_token_match(cand_df, tokens_req, label: str) -> list:
     for _, rowB in cand_df.iterrows():
         tokensB = tokenize(rowB[COLB_NOM], "df")
         if tokens_req and all(tok in tokensB for tok in tokens_req):
-            all_codes.append(str(rowB[COLB_CODE_FINESS]).strip())
+            all_codes.append(str(rowB[COLB_FINESS]).strip())
     if all_codes:
         return all_codes
 
@@ -180,7 +182,7 @@ def do_token_match(cand_df, tokens_req, label: str) -> list:
     for _, rowB in cand_df.iterrows():
         tokensB = tokenize(rowB[COLB_NOM], "df")
         if tokens_req and any(tok in tokensB for tok in tokens_req):
-            any_codes.append(str(rowB[COLB_CODE_FINESS]).strip())
+            any_codes.append(str(rowB[COLB_FINESS]).strip())
 
     # Si plusieurs et Nom2 existe, on retente ALL puis ANY sur Nom2
     if len(any_codes) > 1 and COLB_NOM2 in cand_df.columns:
@@ -188,7 +190,7 @@ def do_token_match(cand_df, tokens_req, label: str) -> list:
         for _, rowB in cand_df.iterrows():
             tokensB2 = tokenize(rowB[COLB_NOM2], "df")
             if tokens_req and all(tok in tokensB2 for tok in tokens_req):
-                all_codes_nom2.append(str(rowB[COLB_CODE_FINESS]).strip())
+                all_codes_nom2.append(str(rowB[COLB_FINESS]).strip())
         if all_codes_nom2:
             return all_codes_nom2
 
@@ -196,7 +198,7 @@ def do_token_match(cand_df, tokens_req, label: str) -> list:
         for _, rowB in cand_df.iterrows():
             tokensB2 = tokenize(rowB[COLB_NOM2], "df")
             if tokens_req and any(tok in tokensB2 for tok in tokens_req):
-                any_codes_nom2.append(str(rowB[COLB_CODE_FINESS]).strip())
+                any_codes_nom2.append(str(rowB[COLB_FINESS]).strip())
         return any_codes_nom2
 
     return any_codes
@@ -206,7 +208,7 @@ def verif_finessj(cand_df: pd.DataFrame) -> str:
         return ""
     # Récupère les valeurs non nulles, en chaîne, sans espaces superflus
     vals = (
-        cand_df[COLB_CODE_FINESSJ]
+        cand_df[COLB_FINESSJ]
         .dropna()
         .astype(str)
         .str.strip()
@@ -317,7 +319,7 @@ def main():
             return
 
     # Vérifier colonnes nécessaires dans DF
-    for col in (COLB_NOM, COLB_VILLE, COLB_CODE_FINESS):
+    for col in (COLB_NOM, COLB_VILLE, COLB_FINESS):
         if col not in dfB.columns:
             print(f"❌ Colonne '{col}' absente dans DF.", file=sys.stderr)
             return

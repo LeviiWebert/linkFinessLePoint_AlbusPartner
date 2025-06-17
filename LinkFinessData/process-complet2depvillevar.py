@@ -32,7 +32,7 @@ import unicodedata
 # ──────────────────────────────────────────────────────────────────────────────
 
 PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\data_propre_ext_LP-167_Acc_Risque.xlsx"
-PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Filt_Fine_SCSant.xlsx"
+PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\Résultats\RésultatR123456_tout.xlsx"
 OUTPUT_PATH  = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\résultat_matches_finess.xlsx"
 DEBUG_LOG    = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\debug.txt"
 
@@ -44,8 +44,8 @@ COLA_DEPT         = "Département"
 COLA_MOTS_SIG     = "Mots significatifs"
 
 # Colonnes DF (Table B)
-COLB_NOM          = "Nom_x"
-COLB_NOM2         = "Nom2_x"
+COLB_NOM          = "Nom"
+COLB_NOM2         = "Nom2"
 COLB_VILLE        = "Ville"
 COLB_CODE_FINESS  = "FINESS"
 
