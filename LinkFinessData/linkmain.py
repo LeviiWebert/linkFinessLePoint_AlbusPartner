@@ -33,6 +33,7 @@ df_sc = pd.read_excel(PATH_TABLE_B)
 #  Il faut limité le nombre de finess à 1 trouvé
 # on peut diviser les recherches sur colonnes en différentes règles
 for idx, row in df_lp.iterrows():
+    print(f"L'index de la ligne est : {idx}\n\n")
     # Check if the city from Table A is contained within any city from Table B
     df_sc_filtered = df_sc[
         df_sc[COLB_VILLE].replace(" ST "," SAINT ").str.upper().str.contains(str(str(row[COLA_VILLE]).replace(" ST "," SAINT ")).upper())
@@ -83,7 +84,7 @@ for idx, row in df_lp.iterrows():
             break
         else:
             print(f"Aucun match trouvé pour {nomhop}\n") 
-            df_lp.at[_, COLA_FINESS] = None
+            df_lp.at[idx, COLA_FINESS] = None
 # Enregistrer le DataFrame modifié  
 print(df_lp[COLA_FINESS].view())
 print("Enregistrement des résultats...")
