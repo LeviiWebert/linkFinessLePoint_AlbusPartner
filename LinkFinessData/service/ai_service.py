@@ -72,6 +72,8 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
         - En cas de doute entre établissements du même type, choisis le nom le plus détaillé
         
         IMPORTANT: Tu dois TOUJOURS retourner un numéro d'option, JAMAIS "NO_MATCH"
+
+        Cependant si la correspondance est vraiment pas pareil, tu peux retourner 0 pour indiquer "AUCUNE CORRESPONDANCE".
         
         Réponds uniquement par le numéro de l'option choisie (1, 2, 3, etc.)
         """

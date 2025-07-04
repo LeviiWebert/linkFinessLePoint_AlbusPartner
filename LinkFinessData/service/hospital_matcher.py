@@ -27,12 +27,13 @@ class HospitalMatcher:
     Classe principale pour le matching des établissements de santé
     """
     
-    def __init__(self):
+    def __init__(self, reset_history=False):
         self.total_ai_requests = 0
         self.processed_hospitals = 0
         self.df_lp = None
         self.df_sc = None
         self.last_save_index = 0  # Pour tracking des sauvegardes
+        self.reset_history = reset_history
     
     def load_data(self):
         """
@@ -55,6 +56,21 @@ class HospitalMatcher:
         """
         Vérifie s'il existe déjà des résultats et les charge si possible
         """
+        # Si l'utilisateur veut reset l'historique, on efface le fichier existant
+        if self.reset_history:
+            if os.path.exists(OUTPUT_PATH):
+                try:
+                    os.remove(OUTPUT_PATH)
+                    print("🔄 Historique effacé - nouveau traitement complet")
+                except Exception as e:
+                    print(f"⚠️  Erreur lors de l'effacement de l'historique: {e}")
+            
+            # IMPORTANT: Toujours initialiser à None quand on reset
+            print("🆕 Nouveau traitement complet demandé")
+            self.df_lp[COLA_FINESS] = None
+            return
+        
+        # Seulement si on ne reset PAS l'historique
         if os.path.exists(OUTPUT_PATH):
             try:
                 existing_df = pd.read_excel(OUTPUT_PATH)
@@ -73,19 +89,14 @@ class HospitalMatcher:
                     print(f"📝 Reste à traiter: {len(self.df_lp) - already_processed} hôpitaux")
                 else:
                     print("⚠️  Structure différente détectée, nouveau traitement complet")
-                    # Initialiser la colonne FINESS si elle n'existe pas
-                    if COLA_FINESS not in self.df_lp.columns:
-                        self.df_lp[COLA_FINESS] = None
+                    self.df_lp[COLA_FINESS] = None
             except Exception as e:
                 print(f"⚠️  Erreur lors de la lecture du fichier existant: {e}")
                 print("🔄 Démarrage d'un nouveau traitement...")
-                if COLA_FINESS not in self.df_lp.columns:
-                    self.df_lp[COLA_FINESS] = None
+                self.df_lp[COLA_FINESS] = None
         else:
             print("🆕 Nouveau traitement - aucun fichier de résultats existant")
-            # Initialiser la colonne FINESS
-            if COLA_FINESS not in self.df_lp.columns:
-                self.df_lp[COLA_FINESS] = None
+            self.df_lp[COLA_FINESS] = None
     
     def process_all_hospitals(self):
         """
@@ -93,6 +104,11 @@ class HospitalMatcher:
         """
         if self.df_lp is None or self.df_sc is None:
             raise ValueError("Les données doivent être chargées avant le traitement")
+        
+        # Vérification critique : s'assurer que la colonne FINESS est bien vide si reset
+        if self.reset_history:
+            self.df_lp[COLA_FINESS] = None
+            print("🔄 Reset confirmé : colonne FINESS réinitialisée")
         
         # Compter les hôpitaux déjà traités
         already_processed = self.df_lp[COLA_FINESS].notna().sum()
