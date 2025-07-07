@@ -33,7 +33,7 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
         establishment_type (str): Type d'établissement ("hopital", "clinique", "unknown")
         
     Returns:
-        int: Index du candidat sélectionné
+        tuple: (index du candidat sélectionné, nom du candidat, score de confiance)
     """
     # Vérifier et attendre si nécessaire
     rate_limiter.wait_if_needed()
@@ -53,7 +53,6 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
         Tu es un expert en analyse de données médicales. Tu dois OBLIGATOIREMENT choisir la meilleure correspondance parmi les options données.
         
         Nom de l'établissement recherché: "{hospital_name}"
-        Type d'établissement: {establishment_type.upper()}
         
         {establishment_info}
         
@@ -62,12 +61,8 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
         
         Règles STRICTES:
         - Tu DOIS choisir une option, même si la correspondance n'est pas parfaite
-        - PRIORITÉ ABSOLUE: Choisis un établissement du même type (hôpital avec hôpital, clinique avec clinique)
         - Si aucun établissement du même type, choisis le plus proche par nom
         - Ignore les différences mineures (accents, espaces, tirets, ponctuation)
-        - "ST" = "SAINT", "CHU" = "CENTRE HOSPITALIER UNIVERSITAIRE"
-        - "CH" = "CENTRE HOSPITALIER", "HOPITAL" = "HÔPITAL"
-        - "CLINIQUE" = "CLINIC", "POLYCLINIQUE" = "POLICLINIQUE"  
         - Les abréviations sont acceptées (ex: "CARDIO" pour "CARDIOLOGIE")
         - En cas de doute entre établissements du même type, choisis le nom le plus détaillé
         
@@ -86,20 +81,86 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
             try:
                 option_num = int(result)
                 if 1 <= option_num <= len(candidates_list):
-                    return option_num - 1  # Retourner l'index (0-based)
+                    selected_index = option_num - 1
+                    selected_candidate = candidates_list[selected_index]
+                    
+                    # Vérification de cohérence supplémentaire
+                    confidence_score = ai_verify_match_coherence(hospital_name, selected_candidate[0])
+                    
+                    return selected_index, selected_candidate[0], confidence_score
+                elif option_num == 0:
+                    return -1, "AUCUNE CORRESPONDANCE", 0
                 else:
                     print(f"IA a retourné un numéro invalide: {result}, utilise la première option")
-                    return 0
+                    return 0, candidates_list[0][0], 50
             except ValueError:
                 print(f"IA a retourné une réponse non numérique: {result}, utilise la première option")
-                return 0
+                return 0, candidates_list[0][0], 50
         else:
             print("Impossible de faire une requête IA, utilise la première option")
-            return 0
+            return 0, candidates_list[0][0], 50
             
     except Exception as e:
         print(f"Erreur IA: {e}, utilise la première option")
-        return 0
+        return 0, candidates_list[0][0], 50
+
+
+def ai_verify_match_coherence(original_name, matched_name):
+    """
+    Vérifie la cohérence du match avec un prompt de vérification supplémentaire
+    
+    Args:
+        original_name (str): Nom original de l'établissement
+        matched_name (str): Nom de l'établissement matché
+        
+    Returns:
+        int: Score de confiance (0-100)
+    """
+    rate_limiter.wait_if_needed()
+    
+    try:
+        prompt = f"""
+        Tu es un expert en validation de correspondances d'établissements de santé.
+        
+        Établissement original: "{original_name}"
+        Établissement matché: "{matched_name}"
+        
+        Évalue la cohérence de cette correspondance sur une échelle de 0 à 100:
+        
+        - 90-100: Correspondance parfaite ou quasi-parfaite
+        - 80-89: Correspondance très probable (même établissement, variations mineures)
+        - 70-79: Correspondance probable (possibles abréviations ou différences d'écriture)
+        - 60-69: Correspondance incertaine mais plausible
+        - 40-59: Correspondance douteuse
+        - 20-39: Correspondance peu probable
+        - 0-19: Correspondance très improbable
+        
+        Critères d'évaluation:
+        - Similarité des noms (ignorant ponctuation, accents, espaces)
+        - Cohérence du type d'établissement (hôpital/clinique)
+        - Présence d'abréviations communes dans le domaine médical
+        - Logique géographique si applicable
+        
+        Réponds uniquement par un nombre entre 0 et 100.
+        """
+        
+        if rate_limiter.make_request():
+            response = model.generate_content(prompt)
+            result = response.text.strip()
+            
+            try:
+                confidence = int(result)
+                # S'assurer que le score est dans la plage 0-100
+                return max(0, min(100, confidence))
+            except ValueError:
+                print(f"Erreur parsing score confiance: {result}, utilise 75")
+                return 75
+        else:
+            return 75  # Score par défaut si impossible de faire la requête
+            
+    except Exception as e:
+        print(f"Erreur vérification cohérence: {e}")
+        return 75
 
 
 def _get_establishment_info(establishment_type):

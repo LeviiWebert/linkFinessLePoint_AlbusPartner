@@ -8,8 +8,8 @@ import os
 
 # Chemins des fichiers
 PATH_TABLE_B = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\Data_matching\Fichier_ref\Data-FINESS_Modele.xlsx"
-PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\emeis1.xlsx"
-OUTPUT_PATH = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\résultat_matches_finess_LP-SCS.xlsx"
+PATH_TABLE_A = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\emeis_ehpad_results.xlsx"
+OUTPUT_PATH = r"C:\Users\LeviWEBERT\OneDrive - ALBUS PARTNERS\Bureau\Scan Medecine\TABLEAU à TRAIté\résultat_matches_finess_emeis-SCS-ehpad.xlsx"
 
 # ========== GESTION DE L'HISTORIQUE ==========
 RESET_HISTORY = True  # True = recommencer à zéro, False = continuer
@@ -21,7 +21,7 @@ CREATE_NEW_OUTPUT = True  # True = nouveau fichier avec timestamp
 POSSIBLE_COLUMNS = {
     # Table A - Établissement à rechercher
     "nom_etablissement": [
-        "Nom de la clinique", "Nom_Hopital", "Nom hopital", "Nom clinique", 
+        "Nom de l'Ehpad","Nom de la clinique", "Nom_Hopital", "Nom hopital", "Nom clinique", 
         "Libelle_Sans_Rang", "Nom", "NomEtablissement", "Etablissement"
     ],
     "ville": [
@@ -59,16 +59,21 @@ def auto_detect_columns(df, column_type):
     possible_names = POSSIBLE_COLUMNS.get(column_type, [])
     available_columns = df.columns.tolist()
     
+    # D'abord chercher une correspondance exacte
     for possible_name in possible_names:
         if possible_name in available_columns:
             return possible_name
     
-    # Si aucune correspondance exacte, chercher par similarité
+    # Ensuite chercher par similarité (case insensitive)
     for possible_name in possible_names:
         for col in available_columns:
-            if possible_name.lower() in col.lower() or col.lower() in possible_name.lower():
+            if (possible_name.lower() == col.lower() or 
+                possible_name.lower() in col.lower() or 
+                col.lower() in possible_name.lower()):
                 return col
     
+    # Debug: afficher les colonnes disponibles si rien n'est trouvé
+    print(f"⚠️  Colonne '{column_type}' non trouvée. Colonnes disponibles: {available_columns}")
     return None
 
 def get_dynamic_config(path_a, path_b, sheet_a="Sheet1", sheet_b="Sheet1"):
@@ -120,7 +125,7 @@ def get_dynamic_config(path_a, path_b, sheet_a="Sheet1", sheet_b="Sheet1"):
 
 # Configuration statique (fallback)
 STATIC_CONFIG = {
-    "COLA_NOM_HOPITAL": "Nom de la clinique",
+    "COLA_NOM_HOPITAL": "Nom de l'Ehpad",
     "COLA_VILLE": "Ville",
     "COLA_DEPARTEMENT": "Departement",
     "COLA_FINESS": "FINESS",
@@ -136,12 +141,33 @@ STATIC_CONFIG = {
 DYNAMIC_CONFIG = get_dynamic_config(PATH_TABLE_A, PATH_TABLE_B)
 FINAL_CONFIG = DYNAMIC_CONFIG if DYNAMIC_CONFIG else STATIC_CONFIG
 
+# Vérification supplémentaire : forcer la correction si la colonne détectée est incorrecte
+def verify_and_fix_config():
+    """Vérifie et corrige la configuration si nécessaire"""
+    global FINAL_CONFIG
+    try:
+        df_a = pd.read_excel(PATH_TABLE_A, nrows=1)
+        actual_columns = df_a.columns.tolist()
+        
+        # Si "Nom de l'Ehpad" existe mais qu'on a détecté autre chose
+        if "Nom de l'Ehpad" in actual_columns and FINAL_CONFIG["COLA_NOM_HOPITAL"] != "Nom de l'Ehpad":
+            print(f"🔧 Correction automatique: '{FINAL_CONFIG['COLA_NOM_HOPITAL']}' → 'Nom de l'Ehpad'")
+            FINAL_CONFIG["COLA_NOM_HOPITAL"] = "Nom de l'Ehpad"
+            
+    except Exception as e:
+        print(f"⚠️  Impossible de vérifier la configuration: {e}")
+
+# Appliquer la vérification
+verify_and_fix_config()
+
 # Assigner les variables finales
 COLA_NOM_HOPITAL = FINAL_CONFIG["COLA_NOM_HOPITAL"]
 COLA_NOM_CLINIQUE = COLA_NOM_HOPITAL
 COLA_VILLE = FINAL_CONFIG["COLA_VILLE"]
 COLA_DEPARTEMENT = FINAL_CONFIG["COLA_DEPARTEMENT"]
 COLA_FINESS = FINAL_CONFIG["COLA_FINESS"]
+COLA_MATCH_NAME = "Nom_Match_Retenu"  # Nom de l'établissement qui a été matché
+COLA_MATCH_CONFIDENCE = "Confiance_Match"  # Score de confiance du match
 
 COLB_NOM_SC = FINAL_CONFIG["COLB_NOM_SC"]
 COLB_NOM = FINAL_CONFIG["COLB_NOM"]
@@ -165,8 +191,8 @@ REPLACE = {"-": " ", " DE ": " ", " DU ": " ", "D'": " ", " DES ": " "}
 
 # Configuration API
 GOOGLE_API_KEY = "AIzaSyBfQjj1pNx0yDlXUSo4tdWUe5RcE35ON6o"
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-2.5-flash"
 FUZZY_THRESHOLD = 85
-MAX_REQUESTS_PER_MINUTE = 15
+MAX_REQUESTS_PER_MINUTE = 50
 TIME_WINDOW = 60
 SAVE_INTERVAL = 10

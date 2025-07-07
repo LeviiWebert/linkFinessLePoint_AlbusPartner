@@ -56,6 +56,7 @@ def verify_file_configuration():
     """
     Vérifie et confirme la configuration des fichiers avec l'utilisateur
     """
+    import pandas as pd
     from config import PATH_TABLE_A, PATH_TABLE_B, OUTPUT_PATH, COLA_NOM_HOPITAL, COLB_NOM, COLA_FINESS, COLB_FIN_SCS
     
     print("\n🔍 === VÉRIFICATION DE LA CONFIGURATION ===")
@@ -63,10 +64,30 @@ def verify_file_configuration():
     print(f"📁 Fichier RÉFÉRENCE (contient les FINESS): {PATH_TABLE_B}")
     print(f"📁 Fichier RÉSULTAT: {OUTPUT_PATH}")
     
-    print(f"\n📊 FLUX DE DONNÉES:")
-    print(f"   SOURCE: Colonne '{COLA_NOM_HOPITAL}' → Recherche des FINESS")
-    print(f"   RÉFÉRENCE: Colonnes '{COLB_NOM}' et '{COLB_FIN_SCS}' → Fournit les FINESS")
-    print(f"   RÉSULTAT: Ajoute colonne '{COLA_FINESS}' au fichier source")
+    # Vérifier les colonnes réelles des fichiers
+    try:
+        df_source = pd.read_excel(PATH_TABLE_A, nrows=1)
+        df_reference = pd.read_excel(PATH_TABLE_B, nrows=1)
+        
+        print(f"\n� COLONNES DISPONIBLES:")
+        print(f"   SOURCE: {list(df_source.columns)}")
+        print(f"   RÉFÉRENCE: {list(df_reference.columns)}")
+        
+        print(f"\n📊 CONFIGURATION ACTUELLE:")
+        print(f"   SOURCE: Colonne '{COLA_NOM_HOPITAL}' → Recherche des FINESS")
+        print(f"   RÉFÉRENCE: Colonnes '{COLB_NOM}' et '{COLB_FIN_SCS}' → Fournit les FINESS")
+        print(f"   RÉSULTAT: Ajoute colonne '{COLA_FINESS}' au fichier source")
+        
+        # Vérifier si les colonnes configurées existent
+        if COLA_NOM_HOPITAL not in df_source.columns:
+            print(f"⚠️  ATTENTION: Colonne '{COLA_NOM_HOPITAL}' introuvable dans le fichier source!")
+            print(f"   Colonnes disponibles: {list(df_source.columns)}")
+        
+        if COLB_NOM not in df_reference.columns:
+            print(f"⚠️  ATTENTION: Colonne '{COLB_NOM}' introuvable dans le fichier référence!")
+            
+    except Exception as e:
+        print(f"❌ Erreur lecture fichiers: {e}")
     
     print(f"\n💡 LOGIQUE:")
     print(f"   Pour chaque établissement du fichier SOURCE,")
@@ -74,10 +95,19 @@ def verify_file_configuration():
     print(f"   et on récupère son numéro FINESS.")
     
     while True:
-        confirm = input("\n❓ Cette configuration est-elle correcte? (oui/non/inverser): ").strip().lower()
+        confirm = input("\n❓ Cette configuration est-elle correcte? (oui/non/inverser/corriger): ").strip().lower()
         
         if confirm in ['oui', 'o', 'yes', 'y']:
             print("✅ Configuration confirmée")
+            break
+        elif confirm in ['corriger', 'c', 'fix']:
+            print("\n🔧 CORRECTION DE LA CONFIGURATION:")
+            print("Pour corriger, modifiez le fichier config.py")
+            print("Section STATIC_CONFIG:")
+            print("- COLA_NOM_HOPITAL: nom de la colonne dans le fichier source")
+            print("- COLB_NOM: nom de la colonne dans le fichier référence")
+            input("Appuyez sur Entrée après correction...")
+            break
             break
         elif confirm in ['non', 'n', 'no']:
             print("❌ Veuillez modifier le fichier config.py selon vos besoins")
@@ -108,7 +138,7 @@ def main():
     Fonction principale du programme
     """
     print("🏥 === MATCHING D'ÉTABLISSEMENTS DE SANTÉ AVEC IA ===")
-    print("Version modulaire - Optimisée pour Gemini 1.5 Flash")
+    print("Version modulaire - Optimisée pour Gemini 2.5 Flash")
     print("=" * 60)
     
     # Demander à l'utilisateur s'il souhaite reprendre l'historique

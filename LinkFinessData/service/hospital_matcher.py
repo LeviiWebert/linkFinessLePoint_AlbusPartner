@@ -68,6 +68,14 @@ class HospitalMatcher:
             # IMPORTANT: Toujours initialiser à None quand on reset
             print("🆕 Nouveau traitement complet demandé")
             self.df_lp[COLA_FINESS] = None
+            if COLA_MATCH_NAME not in self.df_lp.columns:
+                self.df_lp[COLA_MATCH_NAME] = None
+            else:
+                self.df_lp[COLA_MATCH_NAME] = None
+            if COLA_MATCH_CONFIDENCE not in self.df_lp.columns:
+                self.df_lp[COLA_MATCH_CONFIDENCE] = None
+            else:
+                self.df_lp[COLA_MATCH_CONFIDENCE] = None
             return
         
         # Seulement si on ne reset PAS l'historique
@@ -83,6 +91,17 @@ class HospitalMatcher:
                     # Copier les résultats existants
                     self.df_lp[COLA_FINESS] = existing_df[COLA_FINESS]
                     
+                    # Copier les nouvelles colonnes si elles existent
+                    if COLA_MATCH_NAME in existing_df.columns:
+                        self.df_lp[COLA_MATCH_NAME] = existing_df[COLA_MATCH_NAME]
+                    else:
+                        self.df_lp[COLA_MATCH_NAME] = None
+                        
+                    if COLA_MATCH_CONFIDENCE in existing_df.columns:
+                        self.df_lp[COLA_MATCH_CONFIDENCE] = existing_df[COLA_MATCH_CONFIDENCE]
+                    else:
+                        self.df_lp[COLA_MATCH_CONFIDENCE] = None
+                    
                     # Compter les hôpitaux déjà traités
                     already_processed = self.df_lp[COLA_FINESS].notna().sum()
                     print(f"🔄 Reprise du traitement: {already_processed} hôpitaux déjà traités")
@@ -90,13 +109,19 @@ class HospitalMatcher:
                 else:
                     print("⚠️  Structure différente détectée, nouveau traitement complet")
                     self.df_lp[COLA_FINESS] = None
+                    self.df_lp[COLA_MATCH_NAME] = None
+                    self.df_lp[COLA_MATCH_CONFIDENCE] = None
             except Exception as e:
                 print(f"⚠️  Erreur lors de la lecture du fichier existant: {e}")
                 print("🔄 Démarrage d'un nouveau traitement...")
                 self.df_lp[COLA_FINESS] = None
+                self.df_lp[COLA_MATCH_NAME] = None
+                self.df_lp[COLA_MATCH_CONFIDENCE] = None
         else:
             print("🆕 Nouveau traitement - aucun fichier de résultats existant")
             self.df_lp[COLA_FINESS] = None
+            self.df_lp[COLA_MATCH_NAME] = None
+            self.df_lp[COLA_MATCH_CONFIDENCE] = None
     
     def process_all_hospitals(self):
         """
@@ -109,6 +134,12 @@ class HospitalMatcher:
         if self.reset_history:
             self.df_lp[COLA_FINESS] = None
             print("🔄 Reset confirmé : colonne FINESS réinitialisée")
+        
+        # Initialiser les nouvelles colonnes si elles n'existent pas
+        if COLA_MATCH_NAME not in self.df_lp.columns:
+            self.df_lp[COLA_MATCH_NAME] = None
+        if COLA_MATCH_CONFIDENCE not in self.df_lp.columns:
+            self.df_lp[COLA_MATCH_CONFIDENCE] = None
         
         # Compter les hôpitaux déjà traités
         already_processed = self.df_lp[COLA_FINESS].notna().sum()
@@ -170,13 +201,18 @@ class HospitalMatcher:
             return
         
         # Essayer le matching
-        selected_finess = self._match_establishment(establishment_name, establishment_type, candidates)
+        selected_finess, matched_name, confidence_score = self._match_establishment(establishment_name, establishment_type, candidates)
         
         if selected_finess:
             self.df_lp.at[idx, COLA_FINESS] = selected_finess
-            print(f"✅ FINESS assigné: {selected_finess}")
+            self.df_lp.at[idx, COLA_MATCH_NAME] = matched_name
+            self.df_lp.at[idx, COLA_MATCH_CONFIDENCE] = confidence_score
+            print(f"✅ FINESS assigné: {selected_finess} (Confiance: {confidence_score}%)")
+            print(f"   Nom matché: {matched_name}")
         else:
             self.df_lp.at[idx, COLA_FINESS] = None
+            self.df_lp.at[idx, COLA_MATCH_NAME] = None
+            self.df_lp.at[idx, COLA_MATCH_CONFIDENCE] = 0
             print(f"❌ Aucun match trouvé")
         
         print(f"📊 Requêtes IA utilisées: {self.total_ai_requests}")
@@ -256,13 +292,16 @@ class HospitalMatcher:
     def _match_establishment(self, establishment_name, establishment_type, candidates):
         """
         Effectue le matching d'un établissement avec les candidats (optimisé IA)
+        
+        Returns:
+            tuple: (finess, nom_matché, score_confiance) ou (None, None, 0) si pas de match
         """
         establishment_name_clean = clean_name(establishment_name)
         
         # Si un seul candidat, pas besoin de fuzzy ou IA
         if len(candidates) == 1:
             print(f"🎯 Un seul candidat disponible: {candidates[0][0]}")
-            return candidates[0][1]
+            return candidates[0][1], candidates[0][0], 95  # Score élevé car unique candidat
         
         # Essayer d'abord le matching fuzzy
         best_match_idx, best_score = self._fuzzy_match(establishment_name_clean, candidates)
@@ -270,20 +309,24 @@ class HospitalMatcher:
         if best_score > FUZZY_THRESHOLD:
             print(f"🎯 Match fuzzy trouvé (score: {best_score})")
             print(f"   {establishment_name_clean} -> {candidates[best_match_idx][0]}")
-            return candidates[best_match_idx][1]
+            return candidates[best_match_idx][1], candidates[best_match_idx][0], best_score
         else:
             # Utiliser l'IA pour choisir PARMI TOUS les candidats en une seule requête
             print(f"🤖 Score fuzzy insuffisant ({best_score}), utilisation de l'IA...")
             print(f"   Analyse de {len(candidates)} candidats en une requête...")
             self.total_ai_requests += 1
             
-            selected_idx = ai_compare_hospital_names_batch(
+            selected_idx, matched_name, confidence_score = ai_compare_hospital_names_batch(
                 establishment_name_clean, candidates, establishment_type
             )
             
-            print(f"🎯 Match IA sélectionné:")
-            print(f"   {establishment_name_clean} -> {candidates[selected_idx][0]}")
-            return candidates[selected_idx][1]
+            if selected_idx == -1:  # Aucune correspondance
+                print(f"🤖 IA: Aucune correspondance trouvée")
+                return None, "AUCUNE CORRESPONDANCE", 0
+            
+            print(f"🎯 Match IA sélectionné (confiance: {confidence_score}%):")
+            print(f"   {establishment_name_clean} -> {matched_name}")
+            return candidates[selected_idx][1], matched_name, confidence_score
     
     def _fuzzy_match(self, establishment_name_clean, candidates):
         """
