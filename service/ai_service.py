@@ -65,9 +65,7 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
         - Ignore les différences mineures (accents, espaces, tirets, ponctuation)
         - Les abréviations sont acceptées (ex: "CARDIO" pour "CARDIOLOGIE")
         - En cas de doute entre établissements du même type, choisis le nom le plus détaillé
-        
-        IMPORTANT: Tu dois TOUJOURS retourner un numéro d'option, JAMAIS "NO_MATCH"
-
+        - les libelles comporte aussi la ville et le département, ne les prends pas en compte dans la comparaison
         Cependant si la correspondance est vraiment pas pareil, tu peux retourner 0 pour indiquer "AUCUNE CORRESPONDANCE".
         
         Réponds uniquement par le numéro de l'option choisie (1, 2, 3, etc.)
@@ -139,7 +137,7 @@ def ai_verify_match_coherence(original_name, matched_name):
         - Similarité des noms (ignorant ponctuation, accents, espaces)
         - Cohérence du type d'établissement (hôpital/clinique)
         - Présence d'abréviations communes dans le domaine médical
-        - Logique géographique si applicable
+        - Ne prends pas en compte la logique géographique mais seulement les mots similaire ou exactement pareil
         
         Réponds uniquement par un nombre entre 0 et 100.
         """

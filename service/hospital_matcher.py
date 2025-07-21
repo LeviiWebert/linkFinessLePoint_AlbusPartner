@@ -27,13 +27,15 @@ class HospitalMatcher:
     Classe principale pour le matching des établissements de santé
     """
     
-    def __init__(self, reset_history=False):
+    def __init__(self, reset_history=False, differentiate_types=False, forced_type=None):
         self.total_ai_requests = 0
         self.processed_hospitals = 0
         self.df_lp = None
         self.df_sc = None
         self.last_save_index = 0  # Pour tracking des sauvegardes
         self.reset_history = reset_history
+        self.differentiate_types = differentiate_types
+        self.forced_type = forced_type  # None, "hopital", "clinique"
     
     def load_data(self):
         """
@@ -184,12 +186,19 @@ class HospitalMatcher:
         # Obtenir le nom et le type d'établissement
         establishment_name, establishment_type = get_establishment_name_and_type(row)
         
+        # Appliquer les paramètres de gestion des types
+        if not self.differentiate_types:
+            establishment_type = "unknown"  # Ignorer le type
+        elif self.forced_type:
+            establishment_type = self.forced_type  # Forcer un type spécifique
+        
         if not establishment_name:
             print(f"❌ Aucun nom d'établissement trouvé pour la ligne {idx}")
             self.df_lp.at[idx, COLA_FINESS] = None
             return
         
-        print(f"🔍 Recherche pour {establishment_type.upper()}: {establishment_name}")
+        type_info = f" (Type: {establishment_type.upper()})" if self.differentiate_types else " (Type ignoré)"
+        print(f"🔍 Recherche pour: {establishment_name}{type_info}")
         print(f"📍 Ville: {row[COLA_VILLE]} | Département: {row[COLA_DEPARTEMENT]}")
         
         # Filtrer les candidats par ville
@@ -270,22 +279,25 @@ class HospitalMatcher:
         
         for idx, row_sc in df_sc_filtered.iterrows():
             best_name = get_best_candidate_name(row_sc, [COLB_NOM_SC, COLB_NOM, COLB_NOM_2])
-            candidate_type = detect_establishment_type(best_name)
             candidate_info = (best_name, row_sc[COLB_FIN_SCS])
-            
             all_candidates.append(candidate_info)
             
-            # Garder séparément les candidats du même type
-            if candidate_type == establishment_type:
-                same_type_candidates.append(candidate_info)
+            # Garder séparément les candidats du même type SEULEMENT si on différencie les types
+            if self.differentiate_types and establishment_type != "unknown":
+                candidate_type = detect_establishment_type(best_name)
+                if candidate_type == establishment_type:
+                    same_type_candidates.append(candidate_info)
         
-        # Choisir les candidats à utiliser (priorité au même type)
-        candidates = same_type_candidates if same_type_candidates else all_candidates
-        
-        if same_type_candidates:
+        # Choisir les candidats à utiliser
+        if self.differentiate_types and same_type_candidates:
+            candidates = same_type_candidates
             print(f"🎯 Trouvé {len(same_type_candidates)} candidats du même type ({establishment_type})")
         else:
-            print(f"⚠️  Aucun candidat du même type, utilisation de tous les {len(all_candidates)} candidats")
+            candidates = all_candidates
+            if self.differentiate_types:
+                print(f"⚠️  Aucun candidat du type {establishment_type}, utilisation de tous les candidats ({len(all_candidates)})")
+            else:
+                print(f"🎯 Tous types confondus: {len(all_candidates)} candidats")
         
         return candidates
     
@@ -336,7 +348,7 @@ class HospitalMatcher:
         best_score = 0
         
         for i, (candidate_name, finess) in enumerate(candidates):
-            score = fuzz.ratio(establishment_name_clean, candidate_name)
+            score = fuzz._token_sort(establishment_name_clean, candidate_name)
             if score > best_score:
                 best_score = score
                 best_match_idx = i
