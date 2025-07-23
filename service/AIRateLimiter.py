@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 # Gestion des limites API (15 requêtes par minute pour Gemini 1.5 Flash)
 class AIRateLimiter:
     def __init__(self, max_requests=100, time_window=10):

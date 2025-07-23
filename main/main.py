@@ -22,20 +22,21 @@ def get_user_choice():
     print("2. Recommencer à zéro (efface l'historique)")
     print("3. Vérifier la configuration des fichiers")
     print("4. Changer le niveau de matching fuzzy")
-    print("5. Quitter")
+    print("5. Mode TEST - Échantillon de 25 établissements avec logging détaillé")
+    print("6. Quitter")
     
     while True:
         try:
-            choice = input("\nVotre choix (1/2/3/4/5): ").strip()
+            choice = input("\nVotre choix (1/2/3/4/5/6): ").strip()
             
             if choice == "1":
                 print("✅ Reprise de l'historique existant...")
-                return True
+                return True, False
             elif choice == "2":
                 confirm = input("⚠️  Êtes-vous sûr de vouloir recommencer à zéro? (oui/non): ").strip().lower()
                 if confirm in ['oui', 'o', 'yes', 'y']:
                     print("🔄 Recommencement à zéro...")
-                    return False
+                    return False, False
                 else:
                     print("Annulé, retour au menu...")
                     continue
@@ -46,10 +47,13 @@ def get_user_choice():
                 choose_fuzzy_level()
                 continue
             elif choice == "5":
+                print("🧪 Mode TEST activé - Échantillon aléatoire avec logging détaillé")
+                return False, True  # reset=True, test_mode=True
+            elif choice == "6":
                 print("👋 Au revoir!")
                 sys.exit(0)
             else:
-                print("❌ Choix invalide. Veuillez entrer 1, 2, 3, 4 ou 5.")
+                print("❌ Choix invalide. Veuillez entrer 1, 2, 3, 4, 5 ou 6.")
                 
         except KeyboardInterrupt:
             print("\n\n👋 Au revoir!")
@@ -138,34 +142,96 @@ def verify_file_configuration():
     Vérifie et confirme la configuration des fichiers avec l'utilisateur
     """
     import pandas as pd
-    from config import PATH_TABLE_A, PATH_TABLE_B, OUTPUT_PATH, COLA_NOM_HOPITAL, COLB_NOM, COLA_FINESS, COLB_FIN_SCS
+    from config import (PATH_TABLE_A, PATH_TABLE_B, OUTPUT_PATH, 
+                       get_column_mapping, get_geo_comparison_strategy, 
+                       get_finess_strategy, validate_configuration)
     
     print("\n🔍 === VÉRIFICATION DE LA CONFIGURATION ===")
     print(f"📁 Fichier SOURCE (établissements à traiter): {PATH_TABLE_A}")
     print(f"📁 Fichier RÉFÉRENCE (contient les FINESS): {PATH_TABLE_B}")
     print(f"📁 Fichier RÉSULTAT: {OUTPUT_PATH}")
     
+    # Validation de la configuration
+    validation = validate_configuration()
+    if not validation["valid"]:
+        print("\n❌ ERREURS DE CONFIGURATION:")
+        for error in validation["errors"]:
+            print(f"   • {error}")
+        input("Appuyez sur Entrée pour continuer...")
+        return
+    
+    if validation["warnings"]:
+        print("\n⚠️  AVERTISSEMENTS:")
+        for warning in validation["warnings"]:
+            print(f"   • {warning}")
+    
+    # Afficher la configuration actuelle
+    columns = get_column_mapping()
+    geo_strategy = get_geo_comparison_strategy()
+    finess_strategy = get_finess_strategy()
+    
+    print(f"\n📊 CONFIGURATION ACTUELLE:")
+    print(f"   SOURCE: '{columns['source']['name']}' (noms) + '{columns['source']['city']}' (villes)")
+    if columns['source']['department']:
+        print(f"           + '{columns['source']['department']}' (départements)")
+    
+    print(f"   RÉFÉRENCE: '{columns['reference']['name_primary']}' (noms)")
+    if columns['reference']['name_secondary']:
+        print(f"              + '{columns['reference']['name_secondary']}' (noms alternatifs)")
+    print(f"              + '{columns['reference']['city']}' (villes)")
+    if columns['reference']['department']:
+        print(f"              + '{columns['reference']['department']}' (départements)")
+    
+    print(f"\n🗺️  STRATÉGIE GÉOGRAPHIQUE:")
+    if geo_strategy["city_only"]:
+        print("   • Comparaison par VILLE uniquement")
+    elif geo_strategy["department_only"]:
+        print("   • Comparaison par DÉPARTEMENT uniquement")
+    elif geo_strategy["both"]:
+        print("   • Comparaison par VILLE ET DÉPARTEMENT")
+    
+    print(f"\n🏥 STRATÉGIE FINESS:")
+    if finess_strategy["prefer_source"]:
+        print("   • Source principale: TABLE SOURCE")
+    else:
+        print("   • Source principale: TABLE RÉFÉRENCE")
+    
+    if finess_strategy["has_source_finess"]:
+        print(f"   • FINESS source: '{columns['source']['finess']}'")
+    if finess_strategy["has_reference_finess"]:
+        print(f"   • FINESS référence: '{columns['reference']['finess']}'")
+    
     # Vérifier les colonnes réelles des fichiers
     try:
         df_source = pd.read_excel(PATH_TABLE_A, nrows=1)
         df_reference = pd.read_excel(PATH_TABLE_B, nrows=1)
         
-        print(f"\n� COLONNES DISPONIBLES:")
-        print(f"   SOURCE: {list(df_source.columns)}")
-        print(f"   RÉFÉRENCE: {list(df_reference.columns)}")
+        print(f"\n🔍 VÉRIFICATION DES COLONNES:")
         
-        print(f"\n📊 CONFIGURATION ACTUELLE:")
-        print(f"   SOURCE: Colonne '{COLA_NOM_HOPITAL}' → Recherche des FINESS")
-        print(f"   RÉFÉRENCE: Colonnes '{COLB_NOM}' et '{COLB_FIN_SCS}' → Fournit les FINESS")
-        print(f"   RÉSULTAT: Ajoute colonne '{COLA_FINESS}' au fichier source")
+        # Vérifier colonnes source
+        missing_source = []
+        for key, col in columns['source'].items():
+            if col and col not in df_source.columns:
+                missing_source.append(f"{key}: '{col}'")
         
-        # Vérifier si les colonnes configurées existent
-        if COLA_NOM_HOPITAL not in df_source.columns:
-            print(f"⚠️  ATTENTION: Colonne '{COLA_NOM_HOPITAL}' introuvable dans le fichier source!")
-            print(f"   Colonnes disponibles: {list(df_source.columns)}")
+        # Vérifier colonnes référence
+        missing_ref = []
+        for key, col in columns['reference'].items():
+            if col and col not in df_reference.columns:
+                missing_ref.append(f"{key}: '{col}'")
         
-        if COLB_NOM not in df_reference.columns:
-            print(f"⚠️  ATTENTION: Colonne '{COLB_NOM}' introuvable dans le fichier référence!")
+        if missing_source:
+            print("   ❌ Colonnes manquantes dans SOURCE:")
+            for missing in missing_source:
+                print(f"      • {missing}")
+        
+        if missing_ref:
+            print("   ❌ Colonnes manquantes dans RÉFÉRENCE:")
+            for missing in missing_ref:
+                print(f"      • {missing}")
+        
+        if not missing_source and not missing_ref:
+            print("   ✅ Toutes les colonnes configurées sont présentes")
             
     except Exception as e:
         print(f"❌ Erreur lecture fichiers: {e}")
@@ -173,46 +239,39 @@ def verify_file_configuration():
     print(f"\n💡 LOGIQUE:")
     print(f"   Pour chaque établissement du fichier SOURCE,")
     print(f"   on cherche dans le fichier RÉFÉRENCE l'établissement correspondant")
-    print(f"   et on récupère son numéro FINESS.")
+    if finess_strategy["has_reference_finess"]:
+        print(f"   et on récupère son numéro FINESS.")
+    else:
+        print(f"   et on utilise le FINESS existant.")
     
     while True:
-        confirm = input("\n❓ Cette configuration est-elle correcte? (oui/non/inverser/corriger): ").strip().lower()
+        confirm = input("\n❓ Cette configuration est-elle correcte? (oui/non/détails): ").strip().lower()
         
         if confirm in ['oui', 'o', 'yes', 'y']:
             print("✅ Configuration confirmée")
             break
-        elif confirm in ['corriger', 'c', 'fix']:
-            print("\n🔧 CORRECTION DE LA CONFIGURATION:")
-            print("Pour corriger, modifiez le fichier config.py")
-            print("Section STATIC_CONFIG:")
-            print("- COLA_NOM_HOPITAL: nom de la colonne dans le fichier source")
-            print("- COLB_NOM: nom de la colonne dans le fichier référence")
-            input("Appuyez sur Entrée après correction...")
-            break
-            break
+        elif confirm in ['détails', 'd', 'details']:
+            show_detailed_config()
+            continue
         elif confirm in ['non', 'n', 'no']:
-            print("❌ Veuillez modifier le fichier config.py selon vos besoins")
+            print("❌ Veuillez relancer avec COLUMN_CONFIG_MODE = 'interactive' dans config.py")
             sys.exit(0)
-        elif confirm in ['inverser', 'inv', 'i']:
-            suggest_file_inversion()
-            break
         else:
-            print("Répondez par 'oui', 'non' ou 'inverser'")
+            print("Répondez par 'oui', 'non' ou 'détails'")
 
-
-def suggest_file_inversion():
+def show_detailed_config():
     """
-    Propose d'inverser les fichiers si l'utilisateur le souhaite
+    Affiche la configuration détaillée
     """
-    print("\n🔄 INVERSION DES FICHIERS:")
-    print("Pour inverser les rôles des fichiers, modifiez dans config.py:")
-    print("PATH_TABLE_A = votre fichier de référence (qui contient les FINESS)")
-    print("PATH_TABLE_B = votre fichier à traiter (où ajouter les FINESS)")
-    print("\nEt ajustez les noms de colonnes en conséquence.")
+    from config import (GEO_COMPARISON_TYPE, PRIMARY_FINESS_SOURCE, 
+                       FUZZY_LEVEL, FUZZY_THRESHOLD, COLUMN_CONFIG_MODE)
     
-    input("\nAppuyez sur Entrée pour continuer...")
-    sys.exit(0)
-
+    print("\n📋 === CONFIGURATION DÉTAILLÉE ===")
+    print(f"Mode configuration: {COLUMN_CONFIG_MODE}")
+    print(f"Type comparaison géo: {GEO_COMPARISON_TYPE}")
+    print(f"Source FINESS primaire: {PRIMARY_FINESS_SOURCE}")
+    print(f"Niveau fuzzy: {FUZZY_LEVEL} (seuil: {FUZZY_THRESHOLD}%)")
+    print("="*40)
 
 def choose_establishment_type_handling():
     """
@@ -259,21 +318,25 @@ def main():
     print("=" * 60)
     
     # Afficher la configuration actuelle
-    from config import FUZZY_LEVEL, FUZZY_LEVELS, FUZZY_THRESHOLD
+    from config import FUZZY_LEVEL, FUZZY_LEVELS, FUZZY_THRESHOLD, TEST_SAMPLE_SIZE
     fuzzy_info = FUZZY_LEVELS[FUZZY_LEVEL]
     print(f"🎯 Niveau de matching fuzzy: {fuzzy_info['description']} (Seuil: {FUZZY_THRESHOLD}%)")
     
     # Demander à l'utilisateur s'il souhaite reprendre l'historique
-    use_history = get_user_choice()
+    use_history, test_mode = get_user_choice()
     
     # Choix de la gestion des types d'établissements
     differentiate_types, forced_type = choose_establishment_type_handling()
     
     try:
         # Créer le matcher avec le choix de l'utilisateur
-        # use_history = True signifie reprendre l'historique
-        # use_history = False signifie recommencer à zéro (reset_history = True)
         matcher = HospitalMatcher(reset_history=not use_history, differentiate_types=differentiate_types, forced_type=forced_type)
+        
+        # Activer le mode test si demandé
+        if test_mode:
+            from test_mode import create_test_hospital_matcher
+            matcher = create_test_hospital_matcher(matcher, enable_test_mode=True, sample_size=TEST_SAMPLE_SIZE)
+            print(f"🧪 Mode test activé - {TEST_SAMPLE_SIZE} établissements seront testés")
         
         # Charger les données
         matcher.load_data()

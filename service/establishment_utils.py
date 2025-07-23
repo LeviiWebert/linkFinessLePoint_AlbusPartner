@@ -99,23 +99,29 @@ def clean_name(name):
     return cleaned
 
 
-def get_best_candidate_name(row_sc, columns):
+def get_best_candidate_name(row_sc, columns, prioritize_first=True):
     """
     Choisit le meilleur nom de candidat parmi plusieurs colonnes
     
     Args:
         row_sc: Ligne du DataFrame des candidats
-        columns (list): Liste des colonnes à considérer
+        columns (list): Liste des colonnes à considérer (ordre de priorité)
+        prioritize_first (bool): Si True, privilégie la première colonne disponible
         
     Returns:
         str: Meilleur nom trouvé
     """
     names = []
-    for col in columns:
+    for i, col in enumerate(columns):
         if pd.notna(row_sc[col]) and str(row_sc[col]).strip():
             cleaned = clean_name(row_sc[col])
             if cleaned:
-                names.append(cleaned)
+                if prioritize_first:
+                    # Retourner immédiatement le premier nom valide trouvé
+                    return cleaned
+                else:
+                    # Collecter tous les noms pour choisir le plus long
+                    names.append(cleaned)
     
-    # Retourner le nom le plus long (généralement plus complet)
+    # Si prioritize_first=False, retourner le nom le plus long
     return max(names, key=len) if names else "INCONNU"

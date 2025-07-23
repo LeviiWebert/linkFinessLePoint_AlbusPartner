@@ -4,6 +4,25 @@ import pandas as pd
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+#                   CONSTANTES
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Stopwords français pour filtrer les mots non significatifs
+STOPWORDS = {
+    "CENTRE", "GENERAL", "REGIONAL", "UNIVERSITAIRE", "PUBLIC", "PRIVE",
+    "ETABLISSEMENT", "INSTITUTION", "FONDATION", "ASSOCIATION", "MAISON",
+    "RESIDENCE", "GROUPE", "SECTEUR", "UNITE", "SERVICE", "DEPARTEMENT",
+    "MEDICO", "SOCIAL", "SANTE", "SOINS", "MEDICAL", "MEDICALE"
+}
+
+# Abréviations hospitalières communes
+HOSP_ABBREV = {
+    "CHU", "CHR", "CHI", "CHS", "CHG", "CH", "CHRU", "APHP", "HCL", 
+    "GHL", "GHT", "GHRMSA", "GCSMS", "HAD", "SSR", "EHPAD", "USLD"
+}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 #                   FONCTIONS UTILITAIRES
 # ──────────────────────────────────────────────────────────────────────────────
 

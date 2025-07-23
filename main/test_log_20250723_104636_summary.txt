@@ -1,0 +1,11 @@
+
+🎯 === RÉSUMÉ DU TEST ===
+📊 Total établissements testés: 25
+✅ Matches trouvés: 25 (100.0%)
+❌ Aucun match: 0 (0.0%)
+
+📈 Méthodes utilisées:
+   • fuzzy: 20 cas (80.0%)
+   • ai: 5 cas (20.0%)
+
+📁 Log détaillé: test_log_20250723_104636.json

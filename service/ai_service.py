@@ -39,12 +39,11 @@ def ai_compare_hospital_names_batch(hospital_name, candidates_list, establishmen
     rate_limiter.wait_if_needed()
     
     try:
-        # Construire la liste des candidats avec leur type détecté
+        # Construire la liste des candidats SANS afficher le type détecté
         candidates_text = ""
         for i, (name, finess) in enumerate(candidates_list, 1):
-            candidate_type = detect_establishment_type(name)
-            type_info = f" [TYPE: {candidate_type.upper()}]" if candidate_type != "unknown" else ""
-            candidates_text += f"- Option {i}: \"{name}\"{type_info} (FINESS: {finess})\n"
+            # Supprimer l'affichage du type détecté par le système
+            candidates_text += f"- Option {i}: \"{name}\" (FINESS: {finess})\n"
         
         # Définir le type d'établissement recherché
         establishment_info = _get_establishment_info(establishment_type)
@@ -170,4 +169,5 @@ def _get_establishment_info(establishment_type):
     elif establishment_type == "clinique":
         return "Il s'agit d'une CLINIQUE, privilégie les établissements de type clinique (CLINIQUE, POLYCLINIQUE, etc.)."
     else:
+        return "Type d'établissement non déterminé, utilise ton meilleur jugement."
         return "Type d'établissement non déterminé, utilise ton meilleur jugement."
